@@ -1,20 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
-  <title id="title">Synth Remote Control — 32 px master</title>
-  <desc id="description">Synth app icon family. Flat near-black plate, silver mark, transparent surround. The mark is a handheld remote with a round pad and two keys, sending a signal. Simplified for 24-32 px.</desc>
-  <defs>
-    <linearGradient id="silver" x1="0" y1="0" x2="0.65" y2="1">
-      <stop stop-color="#F8FAFC"/>
-      <stop offset="0.45" stop-color="#C3CFDC"/>
-      <stop offset="1" stop-color="#A9B7C6"/>
-    </linearGradient>
-  </defs>
+  <title id="title">Synth Remote — 24/32 px master</title>
+  <desc id="description">Synth app icon family. Flat near-black plate, transparent surround. The Synth Term window frame and &gt;_ prompt with a flat Darcula blue tint (#6897BB), so Synth Remote reads as Synth Term's companion and stays distinct from it. Simplified for 24-32 px.</desc>
   <g id="foundation">
     <rect x="64" y="64" width="896" height="896" rx="184" fill="#101014"/>
   </g>
-  <g id="glyph" fill="#A9B7C6" fill-rule="evenodd">
-    <path d="M 448,416 H 576 A 64 64 0 0 1 640 480 V 736 A 64 64 0 0 1 576 800 H 448 A 64 64 0 0 1 384 736 V 480 A 64 64 0 0 1 448 416 Z
-             M 448,544 A 64 64 0 1 0 576,544 A 64 64 0 1 0 448,544 Z"/>
-    <path d="M 353.6,289.6 A 224 224 0 0 1 670.4,289.6 L 602.5,357.5 A 128 128 0 0 0 421.5,357.5 Z"/>
+  <g id="glyph" fill="#6897BB" fill-rule="evenodd">
+    <path d="M 272,240 H 752 A 80 80 0 0 1 832,320 V 704 A 80 80 0 0 1 752,784 H 272 A 80 80 0 0 1 192,704 V 320 A 80 80 0 0 1 272,240 Z M 304,320 H 720 A 32 32 0 0 1 752,352 V 672 A 32 32 0 0 1 720,704 H 304 A 32 32 0 0 1 272,672 V 352 A 32 32 0 0 1 304,320 Z"/>
+    <path d="M 320,384 H 416 L 512,512 L 416,640 H 320 L 416,512 Z M 544,576 H 720 V 640 H 544 Z"/>
   </g>
 </svg>

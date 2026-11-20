@@ -1,25 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
-  <title id="title">Synth Remote Control — app icon</title>
-  <desc id="description">Synth app icon family. Flat near-black plate, silver mark, transparent surround. The mark is a handheld remote with a round pad and two keys, sending a signal.</desc>
-  <defs>
-    <linearGradient id="silver" x1="0" y1="0" x2="0.65" y2="1">
-      <stop stop-color="#F8FAFC"/>
-      <stop offset="0.45" stop-color="#C3CFDC"/>
-      <stop offset="1" stop-color="#A9B7C6"/>
-    </linearGradient>
-  </defs>
+  <title id="title">Synth Remote — app icon</title>
+  <desc id="description">Synth app icon family. Flat near-black plate, transparent surround. The Synth Term window frame and &gt;_ prompt with a flat Darcula blue tint (#6897BB), so Synth Remote reads as Synth Term's companion and stays distinct from it.</desc>
   <g id="foundation">
     <rect x="64" y="64" width="896" height="896" rx="184" fill="#101014"/>
   </g>
-  <g id="glyph" fill="url(#silver)" fill-rule="evenodd">
-    <!-- Remote body with a round pad and two keys cut out. -->
-    <path d="M 480,400 H 544 A 80 80 0 0 1 624 480 V 720 A 80 80 0 0 1 544 800 H 480 A 80 80 0 0 1 400 720 V 480 A 80 80 0 0 1 480 400 Z
-             M 452,512 A 60 60 0 1 0 572,512 A 60 60 0 1 0 452,512 Z
-             M 452,624 H 484 A 12 12 0 0 1 496 636 V 668 A 12 12 0 0 1 484 680 H 452 A 12 12 0 0 1 440 668 V 636 A 12 12 0 0 1 452 624 Z
-             M 540,624 H 572 A 12 12 0 0 1 584 636 V 668 A 12 12 0 0 1 572 680 H 540 A 12 12 0 0 1 528 668 V 636 A 12 12 0 0 1 540 624 Z"/>
-    <!-- Signal: two arcs above the remote. -->
-    <path d="M 410.3,335 A 152 152 0 0 1 613.7,335 L 581.6,370.7 A 104 104 0 0 0 442.4,370.7 Z"/>
-    <path d="M 362.1,281.5 A 224 224 0 0 1 661.9,281.5 L 635.1,311.3 A 184 184 0 0 0 388.9,311.3 Z"/>
+  <g id="glyph" fill="#6897BB" fill-rule="evenodd">
+    <path d="M 281,255 H 740 A 77 77 0 0 1 817,332 V 689 A 77 77 0 0 1 740,766 H 281 A 77 77 0 0 1 204,689 V 332 A 77 77 0 0 1 281,255 Z M 304,330 H 720 A 36 36 0 0 1 756,366 V 655 A 36 36 0 0 1 720,691 H 304 A 36 36 0 0 1 268,655 V 366 A 36 36 0 0 1 304,330 Z"/>
+    <path d="M 326,398 H 397 L 475,507 L 397,618 H 326 L 404,507 Z M 551,574 H 697 V 617 H 551 Z"/>
   </g>
 </svg>
