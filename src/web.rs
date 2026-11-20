@@ -50,7 +50,8 @@ pub async fn asset(Path(path): Path<String>) -> Response {
             "icon.svg" => (
                 "image/svg+xml",
                 include_bytes!("../web/icon.svg"),
-                IMMUTABLE,
+                // The icon changes between releases at the same URL, so browsers must revalidate.
+                NO_CACHE,
             ),
             "vendor/xterm.js" => (
                 "text/javascript; charset=utf-8",
