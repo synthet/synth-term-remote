@@ -1,7 +1,8 @@
 [package]
 name = "remote_control_server"
 edition = "2024"
-description = "Self-hosted remote-control (session-sharing) server and web/mobile viewer for Synth Warp"
+description = "Self-hosted remote-control (session-sharing) server and web/mobile viewer for Synth Term"
+homepage = "https://synthet.github.io"
 authors = ["Warp Team <dev@warp.dev>"]
 publish = false
 license = "AGPL-3.0-only"
