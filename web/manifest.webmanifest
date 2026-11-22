@@ -1,7 +1,7 @@
 {
   "name": "Synth Remote",
   "short_name": "Synth Remote",
-  "description": "Remote control for your Synth Warp terminals",
+  "description": "Remote control for your Synth Term terminals",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

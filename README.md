@@ -1,4 +1,4 @@
-# Synth Remote Control Server
+# Synth Term Remote
 
 Self-hosted server and web/mobile viewer for controlling Synth Warp terminals from a phone or
 browser. The web app is embedded in the binary, so there is nothing else to deploy. No Warp account
