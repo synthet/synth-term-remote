@@ -1,64 +1,107 @@
 # Headless decision orchestrator: spec
 
-Status: planned 2026-11-27. Design source: [DESIGN.md](DESIGN.md) (proposal v0.1). Tasks: [tasks.md](tasks.md).
+Status: proposed. Baseline: synthet/synth-term-remote \`main\` 58e796c (2026-11-27) and synthet/warp \`master\` 0e6fd3ac. Design source: [DESIGN.md](DESIGN.md) (proposal v0.1, owner's document). Index: [README.md](README.md). Tasks: [tasks.md](tasks.md).
 
-## Context
-The orchestrator watches coding-agent terminals shared to this server, recognizes one pending question per session, asks Jev for a choice, and either recommends it or applies it through a host-validated conditional answer. It is **headless**: it runs in-process in the Windows tray app and in the console server, attaches to the `Hub` as its own passive participant, and needs no browser UI. Enrollment comes from `orchestrator.toml` plus tray controls. Recommendations and escalations appear as tray balloons, as rows in the tray window, and in an audit journal.
+## Direction
+A developer runs several coding agents in Synth Term terminals shared to this server. The orchestrator watches each enrolled session, recognizes one pending question at a time, gathers bounded evidence, asks Jev for a choice, and then either recommends it (M1) or applies it through a conditional answer that the Synth Term host validates (M2). It is **headless**: it runs in-process in the Windows tray app and the console server, attaches to \`Hub\` as its own passive participant, and needs no browser. Enrollment comes from \`orchestrator.toml\` plus tray controls. Results go to tray balloons, tray window rows and an audit journal.
 
-Scope: doc milestones M0–M2 (Observe, Recommend, Delegate) for Claude Code CLI menus. Host-side work (the extension client and the conditional answer gate) is tracked in synthet/warp as H-1 and H-2.
+Owner decisions (2026-11-27): M0-M2 in scope; in-process placement; config plus tray UX; Claude Code menus first; Jev only for enrollments that opt in.
+
+## Baseline (at 58e796c unless noted)
+| Area | Exists | Gap |
+|---|---|---|
+| Session discovery and replay | \`Hub::join_session\` sends \`JoinedSuccessfully\` then \`Session::replay_events\`; \`GET /api/sessions\` via \`Hub::list_sessions\` | No passive attach: every joiner is a viewer with \`config.viewer_role\` (default \`Role::Full\`), shows in \`participant_list()\`, and its \`ReportTerminalSize\` reaches the sharer |
+| Run state | \`command_running\` flips on \`CommandExecutionStarted\`/\`Finished\` in \`Hub::handle_sharer_message\` | Starts \`false\` for a mid-command share, no \`unknown\`; \`web/app.js\` \`onJoined\` hard-codes \`running = false\` |
+| Resume | \`Hub::resume_session\` checks secret and reconnect token | synthet/warp \`sharer/network.rs\` reconnects with \`session_secret: Default::default()\`, so resume fails with \`WrongPassword\` and the terminal re-shares under a new id |
+| Input | Viewer \`WriteToPty\`/\`ExecuteCommand\` relayed when \`role.can_execute()\`; warp \`terminal_view_adaptor.rs\` \`WriteToPtyRequested\` arm writes via \`write_viewer_bytes_to_pty\` | No conditional answer, generation or attempt id; real browser-to-terminal input unverified (2026-11-05 report) |
+| Protocol | \`session-sharing-protocol\` pinned to a warpdotdev rev shared with synthet/warp | Cannot carry decision messages; needs a separate Synth extension channel |
+| Prompt signals | warp \`CLIAgentSessionStatus::Blocked{PermissionRequest, QuestionAsked, NeedsInput}\` fed by OSC 777 \`warp://cli-agent\` (\`tool_name\`, \`tool_input\`) | No options in the signal; Claude Code hooks not auto-installed on Windows (\`can_auto_install\` is \`!cfg!(windows)\`) |
+| PTY decoding | \`examples/fake_sharer.rs\` frames with \`lz4_flex::block::compress_prepend_size\` | \`lz4_flex\` is dev-only; no VT emulator in the crate |
+| Tray | \`src/tray/app.rs\` window, tray menu, \`LogTail\`; \`launch.rs\` shared startup | No orchestrator, no session list, no notifications beyond the log |
+| Decider | Jev stdio MCP server (\`jev-mcp mcp\`, \`jev_choice\`) | No Rust client; no stub |
+| Tests | \`hub_tests.rs\`, \`tests/websocket_e2e.rs\`, \`examples/fake_sharer.rs\`, Playwright \`web-tests/\` | Playwright version is a placeholder (\`PLAYWRIGHT_VERSION\`) |
+
+## Backlog
+| ID | Item | Milestone | Priority | Effort | Depends on | Baseline | Covered by / replaces |
+|---|---|---|---|---|---|---|---|
+| [ORC-01](items/ORC-01.md) | Authoritative run state for shared sessions (running/idle/unknown) | M0 | P0 | M | - | Partial | warpr-me1nx (T-2) |
+| [ORC-02](items/ORC-02.md) | Resume accepts the client's empty secret when the reconnect token matches | M0 | P0 | S | ORC-04 | Conflict | warpr-jmobk (T-16) |
+| [ORC-03](items/ORC-03.md) | Real-transport verification and Claude Code menu captures | M0 | P0 | M | ORC-01 | Missing | warpr-pdz0k (T-15); overlaps warp INT-02.1 |
+| [ORC-04](items/ORC-04.md) | Passive observer attach in Hub | M0 | P0 | M | ORC-01 | Missing | warpr-sczw3 (T-3) |
+| [ORC-05](items/ORC-05.md) | Orchestrator scaffold, stream observer, VT screen and OSC 777 scanner | M1 | P0 | L | ORC-01, ORC-03, ORC-04 | Missing | warpr-vh8nh (T-1), warpr-66a37 (T-7) |
+| [ORC-06](items/ORC-06.md) | Claude Code menu recognizer and prompt identity | M1 | P0 | M | ORC-03, ORC-05 | Missing | warpr-xli7c (T-8) |
+| [ORC-07](items/ORC-07.md) | orchestrator.toml, enrollment and startup wiring | M1 | P1 | M | ORC-05 | Missing | warpr-slzc1 (T-5) |
+| [ORC-08](items/ORC-08.md) | Deterministic policy, audit journal and pending store | M1 | P0 | M | ORC-05, ORC-06, ORC-07 | Missing | warpr-6mylk (T-9); related warp SEC-01.4 |
+| [ORC-09](items/ORC-09.md) | Evidence packet and Jev decider | M1 | P1 | M | ORC-05, ORC-07 | Missing | warpr-daijn (T-10) |
+| [ORC-10](items/ORC-10.md) | Decision pipeline: Observe and Recommend | M1 | P0 | L | ORC-04, ORC-05, ORC-06, ORC-07, ORC-08, ORC-09 | Missing | warpr-tcjap (T-11) |
+| [ORC-11](items/ORC-11.md) | Headless tray UX: sessions, Enroll, Take over, balloons | M1 | P1 | M | ORC-07, ORC-10 | Missing | warpr-7tsb0 (T-12) |
+| [ORC-12](items/ORC-12.md) | Host extension channel (schema v1, server route, host client) | M2 | P0 | L | ORC-04 | Missing | warpr-gcfh8 (T-4), warpr-bzxpe (T-6); host part covered by warp-i9ils |
+| [ORC-13](items/ORC-13.md) | Host conditional answer gate | M2 | P0 | L | ORC-12 | Missing | covered by warp-m0pj2 |
+| [ORC-14](items/ORC-14.md) | Delegate mode with take-over and recovery | M2 | P0 | L | ORC-02, ORC-08, ORC-09, ORC-10, ORC-12, ORC-13 | Missing | warpr-g7d60 (T-13) |
+| [ORC-15](items/ORC-15.md) | Real-host positive control and release gate | M2 | P1 | M | ORC-03, ORC-07, ORC-11, ORC-13, ORC-14 | Missing | warpr-0jznw (T-14) |
+
+## Corrections the code forced
+These change the design proposal or the first plan. Each is backed by the item that cites the evidence.
+1. **Resume is broken today.** synthet/warp `sharer/network.rs` reconnects with `session_secret: Default::default()` and `Hub::resume_session` rejects it, so every dropped socket re-shares under a new id and would drop an enrollment (ORC-02).
+2. **`did_execute` alone does not mean running.** It is also true for static blocks, so the rule needs a non-null `start_ts` and a null `completed_ts`. The share's UDI `long_running_command_agent_interaction` is a second candidate signal, to be confirmed by real captures (ORC-01, ORC-03).
+3. **Real idle shares are unverified.** `fake_sharer` always sends one block shape. If a real idle share derives as `unknown`, the web viewer keeps today's idle routing for `unknown` (ORC-01).
+4. **Web tests cannot run.** `web-tests/package.json` pins `@playwright/test` to the placeholder `PLAYWRIGHT_VERSION`, so `npm install` fails; ORC-01.2 pins it. `onJoined` should derive state from `body.scrollback`, because fetching `/api/sessions` races the replay (owner to confirm).
+5. **`ReconnectToken` has no byte accessor** at protocol rev f86afe1 (`Display`/`Debug` print `***`). The extension route compares its serde string with `auth::constant_time_eq`, and the host must not build the header with `to_string()` (ORC-12).
+6. **More paths reach the sharer than `WriteToPty`.** `ExecuteCommand`, `SendAgentPrompt` and `SendControlAction` do too, so the remote-input notice that invalidates a pending decision covers all four. Sessions end on three paths (`EndSession`, the size limit, `reap_abandoned`), and each closes the extension link (ORC-12, ORC-14).
+7. **The write counter belongs to the host client** (warp-i9ils), not the gate: `host_generation` needs it first. Focus reports go through `write_to_pty` from `maybe_report_focus_in`/`out` and are excluded (ORC-12, ORC-13).
+8. **On Windows, permission prompts will escalate.** Claude Code hooks are not auto-installed on Windows (`can_auto_install` is `!cfg!(windows)`), so OSC `tool_input` is absent and ORC-08 escalates every permission prompt without operation details. Delegate then effectively covers question menus only (ORC-08).
+9. **The Jev child would inherit the remote-control token.** The server reads `SYNTH_RC_TOKEN`/`SYNTH_RC_TOKEN_FILE` from its environment, so the decider child removes both (`env_remove`). `jev-mcp` also loads its own `.env` and `JEV_ENV_FILE`, so "key from the environment only" binds this crate, not Jev. `ask_user` is a criteria key the caller adds; Jev confidence may be null (ORC-09).
+10. **Startup needs a handle.** `launch::serve` builds the `Hub` privately and `Args` fields are private, so ORC-07.3 changes `serve` to return an orchestrator handle. `toml` is only a build-dependency transitively, so it becomes a direct dependency. `CREATE_NO_WINDOW` needs winapi's `winbase` feature (or tokio's `creation_flags`). nwg `ListView` needs the `list-view` feature; balloons already work through `TrayNotification::show` (ORC-07, ORC-09, ORC-11).
+11. **Untrusted sizes.** `lz4_flex` `decompress` allocates from the 4-byte size prefix, so the observer caps it before decoding. OSC 777 is `ESC ] … BEL` and its body can contain `;`; PTY bytes keep the `?2026` synchronized-output framing (ORC-05).
+12. **Test selection.** `cargo nextest run websocket_e2e` selects no tests from an integration binary; tasks use `-E 'binary(…)'`. The first plan's commands had the same mistake (ORC-12, ORC-14).
+13. **No Claude Code version on the wire.** The OSC notification carries `plugin_version` only, so where the release gate reads the adapter version is open (ORC-15).
 
 ## Architecture
-- **Passive attach.** Add `Hub::attach_observer`, `detach_observer` and `resync_observer`. Observers live in a separate `Session.observers` map and receive the same `JoinedSuccessfully`, replay and broadcasts as viewers. They have **no upstream path**, so they cannot write or resize, and they are not in `participant_list()` or `viewer_count` (that keeps Warp's single-uid viewer-driven sizing working). The dashboard gets `observed: bool`.
-- **Core module.** `src/orchestrator/` consumes a `viewer::DownstreamMessage` stream. It decodes LZ4, runs a VT screen (vt100, confirmed by a spike) and an OSC 777 `warp://cli-agent` scanner, then the Claude Code recognizer, deterministic policy, evidence, a `Decider` (Jev stdio MCP client or stub), and the per-session decision state machine. It keeps a JSONL journal and an atomic `pending.json` under `<data_dir>/orchestrator/`.
-- **Host extension channel.** The pinned `warpdotdev` protocol can't change, so add a separate WebSocket `/synth/v1/sessions/{id}/host`. It uses bearer and origin auth plus an `x-synth-reconnect-token` constant-time match, and allows one link per session. JSON `{"v":1,"type":…}` messages: `hello`, `state`, `observe.refresh`, `decision.opened`, `answer`, `answer.result`, `decision.closed`, `take_over`. `answer` carries no raw bytes. The host owns key encoding, generation (`host_generation` + `last_event_no`), and the final gate. A client without the extension never connects, so delegation stays unavailable (fails closed). The orchestrator reaches the link only through an in-process `HostExtLink`, never over HTTP.
-- **Enrollment rule.** The tray's Enroll submenu lists the profiles in `orchestrator.toml`. Choosing one binds it to that live session id. A re-shared session (new id) has to be enrolled again; nothing matches on pwd, title or tab.
-- **Decider.** `[decider.jev]` sets the command and args. The provider key comes from the environment only, and the child is spawned with `CREATE_NO_WINDOW`.
-- **Startup.** `launch.rs` gets `--orchestrator-config` and `--data-dir`, and the tray passes its `data_dir()`. A missing config means no orchestrator task; an invalid one means an error is logged and the orchestrator stays off. Tray UI logic goes in a testable `orchestrator/ui.rs`, and `src/tray/app.rs` only renders it.
-- **Prerequisite fix.** Derive `run_state: running|idle|unknown` from the share's scrollback (`did_execute`, `completed_ts`, `is_alt_screen_active`) next to `last_scrollback_pwd`, and have `web/app.js onJoined` use it. This fixes the mid-command idle bug. Also fix resume: accept the empty secret when the reconnect token matches, so enrollment survives a dropped socket.
+- **Passive attach (ORC-04).** \`Hub::attach_observer\` / \`detach_observer\` / \`resync_observer\`. Observers live in a separate \`Session.observers\` map, receive the same downstream stream as viewers, have no upstream path, and never appear in \`participant_list()\` or \`viewer_count\`, which keeps Synth Term's single-uid viewer-driven sizing working. The dashboard gets \`observed: bool\`.
+- **Core (ORC-05, ORC-06, ORC-08, ORC-10).** \`src/orchestrator/\` (new) consumes \`viewer::DownstreamMessage\`: LZ4 decode, event numbering with replay suppression and gap resync, a VT screen, an OSC 777 scanner, the Claude Code recognizer with prompt identity across redraws, deterministic policy, and a per-session decision state machine. One pending automatic write per session; a bounded pool of decider jobs across sessions.
+- **Evidence and decider (ORC-09).** Bounded packet (goal, question, eligible options, recent screen, authorized excerpts with digests). \`Decider\` trait with a Jev stdio MCP client and a contract stub. \`ask_user\`, invalid option, timeout or error escalate.
+- **Host extension channel (ORC-12, ORC-13).** WebSocket \`/synth/v1/sessions/{id}/host\`, JSON \`{"v":1,"type":…}\`: \`hello\`, \`state\`, \`observe.refresh\`, \`decision.opened\`, \`answer\`, \`answer.result\`, \`decision.closed\`, \`take_over\`. Auth is \`check_ws_auth\` plus \`x-synth-reconnect-token\` compared with \`auth::constant_time_eq\`. \`answer\` carries option id, index and label but no bytes; the host owns key encoding, \`host_generation\` and the final gate. A host without the extension never connects, so delegation fails closed.
+- **Config, startup and tray (ORC-07, ORC-11).** \`launch.rs\` gains the orchestrator config and data dir; the tray passes \`data_dir()\`. UI logic lives in a testable \`orchestrator/ui.rs\`; \`src/tray/app.rs\` renders it.
+- **Persistence (ORC-08).** \`<data_dir>/orchestrator/journal-YYYYMMDD.jsonl\` and an atomic \`pending.json\`. Write intent before dispatch; after restart, dispatched-but-unconfirmed attempts become \`uncertain\` and are never replayed.
 
-## Out of scope
-- M3 native requests (ACP, Codex app-server).
-- The reviewer step. Jev decides directly behind the `Decider` trait, and a reviewer can implement the same contract later.
-- A macOS tray. The console server runs on macOS, but macOS positive control is deferred.
-- A WebSocket transport for the orchestrator. The core consumes a `viewer::DownstreamMessage` stream, so one can be added later.
-- Changes to the pinned `session-sharing-protocol` rev.
+## Milestones and exit gates
+| Milestone | Items | Exit gate |
+|---|---|---|
+| M0 Real transport | ORC-01, ORC-02, ORC-03, ORC-04 | Live state is authoritative or \`unknown\`; resume keeps the session id; a passive observer receives the stream without being visible or able to write; real menus captured on Windows and real input verified |
+| M1 Recommend | ORC-05 to ORC-11 | Two concurrent sessions get correctly attributed recommendations; the orchestrator has no write path in Observe or Recommend |
+| M2 Delegate | ORC-12 to ORC-15 | All doc §8 race, duplicate, isolation and recovery cases pass against the simulated host, then the real-host positive control passes per adapter version |
 
-## Acceptance criteria
-- AC-1: WHEN `cargo build --all-targets` runs on Windows with the new deps (vt100, sha2, lz4_flex as a regular dep, tokio `process`/`io-util`) THEN it succeeds and clippy is clean.
-- AC-2: WHEN a T-15 real-capture Claude Code menu fixture is fed to the screen THEN `ScreenSnapshot.rows` contains its option lines. The PR records the emulator crate choice and why.
-- AC-3: WHEN the last scrollback block has `did_execute=true` and `completed_ts=null`, or alt-screen is active, THEN `run_state` is `running`. WHEN the block JSON is missing or unparseable THEN it is `unknown`.
-- AC-4: WHEN the `--running` Playwright regressions in `web-tests/tests/regressions.spec.js` run with a pinned `@playwright/test` version (today it is the placeholder `"PLAYWRIGHT_VERSION"`) THEN they pass. `web/app.js` `onJoined`, which hard-codes `running = false` at line 387, takes the server's state from the `/api/sessions` `run_state` field.
-- AC-5: WHEN an observer attaches THEN it receives `JoinedSuccessfully` plus every event, AND the sharer receives nothing, AND `participant_list()` and `viewer_count` are unchanged.
-- AC-6: WHEN the session ends THEN the observer gets `SessionEnded` and its sender is dropped. WHEN `resync_observer(after=N)` is called THEN only events after N are replayed.
-- AC-7: WHEN each v1 golden fixture under `tests/fixtures/synth_ext/v1/` is parsed and re-serialized THEN the output is byte-identical. WHEN `v` or `type` is unknown THEN parsing fails without a panic. `answer` has no raw-bytes field.
-- AC-8: WHEN `orchestrator.toml` is absent THEN the server behaves as today. WHEN it is invalid THEN an error is logged and the orchestrator is off. WHEN it changes THEN `policy_revision` changes.
-- AC-9: WHEN a session is shared THEN it is not enrolled until `enroll(session_id, profile)` is called.
-- AC-10: WHEN the host-extension upgrade has a wrong or missing reconnect token, a foreign Origin, or no bearer token THEN it is refused. WHEN the session is reaped THEN the extension socket closes.
-- AC-11: WHEN a resume carries the client's empty secret and the correct reconnect token THEN it succeeds. WHEN the token is wrong, or a non-empty secret is wrong, THEN it fails.
-- AC-12: WHEN a viewer's `WriteToPty` is relayed on a session with an extension link THEN subscribers get a remote-input notice.
-- AC-13: WHEN bytes are LZ4-framed THEN the screen matches the expected grid. WHEN the frames are malformed THEN `RunState::unknown` with no panic.
-- AC-14: WHEN events are replayed THEN no detection runs. WHEN an event gap appears THEN a resync is requested and the session is ineligible for automatic answers. An OSC 777 split across events yields one signal.
-- AC-15: WHEN captured permission and AskUserQuestion menus are scanned THEN their options and order are found. WHEN a log prints "1/2/3" or old transcript text contains yes/no THEN nothing is recognized.
-- AC-16: WHEN 20 cosmetic redraws occur THEN there is one prompt_id and one generation. WHEN option text or order changes THEN the generation increments.
-- AC-17: WHEN the grant is allow-once THEN the "don't ask again" option is ineligible. WHEN a permission lacks operation details THEN it escalates.
-- AC-18: WHEN pending records are written THEN the write is atomic (temp file then rename). WHEN the orchestrator restarts THEN dispatched-but-unconfirmed records become `uncertain` and are never replayed.
-- AC-19: WHEN an evidence path escapes its root through a symlink or junction THEN it is rejected. WHEN excerpts are not opted in THEN the packet holds metadata only. The token never appears in a packet.
-- AC-20: WHEN the decider returns `ask_user`, an option that wasn't offered, `ok:false`, or times out THEN the outcome is Escalate with a reason. WHEN the doc §6 fixture is sent to the stub THEN `read_old_save_new` is accepted.
-- AC-21: WHEN sessions A and B show the same menu and A's decider is slow THEN B's recommendation lands first and each stays with its own session.
-- AC-22: WHEN the mode is Observe or Recommend THEN the session task is never given a `HostExtLink`, so no write path exists by construction (checked by its type or construction). WHEN it is Observe THEN the decider is never called. Every recommendation or escalation writes a journal row.
-- AC-23: WHEN `ui.rs` gets model state THEN its rows show host, pwd, mode, status, question and age. The Enroll submenu lists the profiles from `orchestrator.toml` and binds the chosen profile to that session id only, never by pwd, title or tab. A Take over action reaches `OrchestratorHandle`. A recommendation or escalation produces balloon text.
-- AC-24: WHEN the tray runs on Windows (manual check) THEN the session list, the Enroll toggle and balloons work with no console.
-- AC-25: Against the simulated host: WHEN a human answers first THEN 0 extra keys are written. WHEN the prompt changed or the process was replaced THEN no stale answer is applied.
-- AC-26: WHEN the socket drops before or after dispatch THEN the attempt is recovered by attempt_id or marked uncertain, and never sent twice. WHEN a grant is revoked or an excerpt changes mid-review THEN the decision is rejected or re-evaluated.
-- AC-27: WHEN a real Claude Code menu is answered on Windows THEN the intended option is chosen and linked to its confirmation, including share-before-launch and attach-mid-command. WHEN the adapter version is not in `delegate_versions` THEN delegation is refused.
-- AC-28: WHEN `examples/record_session.rs` joins a real Synth Term share (Windows) during a Claude Code permission menu and an AskUserQuestion menu THEN their downstream JSONL streams, both from share-before-launch and from attach-mid-command, are saved under `tests/fixtures/claude_code/` with the Claude Code version.
-- AC-29: WHEN the web app sends `WriteToPty` to that real running menu THEN the intended key reaches it. The result is recorded in a short report, replacing the "not verified" entry in the 2026-11-05 report.
-- AC-30: WHEN `take_over` comes from the tray, the remote side or the host THEN automatic writes for that session stop and outstanding decisions are cancelled and journaled, AND delegation resumes only after a fresh `hello` and observation.
-- AC-31: WHEN the Jev decider starts THEN its command and args come from `[decider.jev]` in `orchestrator.toml`, the provider API key is inherited from the environment and never stored in the toml, the journal or an evidence packet, and the child process starts with `CREATE_NO_WINDOW`, so the tray opens no console.
-- AC-32: WHEN a change touches auth, hub roles or the remote-control surface THEN the PR records a review with `.claude/skills/threat-modeling-agentic-tools`.
+## Spec-level acceptance criteria
+- **SPEC/AC-1**: While an enrollment is in Observe or Recommend mode, the orchestrator shall hold no capability that can send terminal input.
+- **SPEC/AC-2**: If run state, event continuity or host identity is unknown, then the orchestrator shall not send an automatic answer for that session.
+- **SPEC/AC-3**: When a human acts on a session from the desktop, the phone or the tray, the orchestrator shall cancel its outstanding automatic decision for that session before any automatic key is sent.
+- **SPEC/AC-4**: The orchestrator shall never send the remote-control token, credentials or an unrelated session's content to a decider.
+- **SPEC/AC-5**: When \`orchestrator.toml\` is absent, the server and tray shall behave exactly as at the baseline commit.
 
-## Risks and open questions
-- Claude Code key behavior (whether a digit selects and submits) and menu stability across versions have to be confirmed from fixtures captured from the installed version (T-8, T-14).
-- A mid-command attach may give a partial frame until the next full redraw, so a session stays ineligible until the frame has been stable for a quiet period.
-- Check the native-windows-gui list-view and balloon APIs and the vt100 API against their docs during T-1 and T-12.
-- macOS positive control is deferred (the tray is Windows-only).
+## Verification matrix
+| Check | Command | Covers |
+|---|---|---|
+| Format, lint, unit and integration tests | \`cargo fmt --check\`; \`cargo clippy --all-targets -- -D warnings\`; \`cargo nextest run --no-fail-fast\` | every task (DoD) |
+| Browser regressions | \`cargo build --bins --examples\` then \`npm test\` in \`web-tests/\` (after the Playwright pin) | ORC-01 |
+| Orchestrator end to end | \`cargo nextest run -E 'test(orchestrator_e2e)'\` | ORC-10 |
+| Delegation races | \`cargo nextest run -E 'test(orchestrator_delegate_e2e)'\` | ORC-14 |
+| Host gate (synthet/warp) | \`cargo nextest run -p warp -E 'test(synth_host_ext)'\` | ORC-13 |
+| Real host, Windows | manual runs recorded in \`docs/reports/\` | ORC-03, ORC-15 |
+| Spec consistency | \`python -I spec_checks.py coverage|graph|paths specs/decision-orchestrator\` | this spec |
+
+## Open decisions (owner to confirm)
+1. **`onJoined` state source**: derive from `body.scrollback` (recommended) rather than `/api/sessions` (ORC-01).
+2. **Resume rule**: accept `SessionSecret::default()` only with a matching reconnect token, server-side (recommended), versus changing the client to store the secret, which costs a full Synth Term rebuild (ORC-02).
+3. **Emulator crate**: `vt100` unless the ORC-05.2 spike shows a gap; `alacritty_terminal` is the alternative. Verify API and license at the pinned version.
+4. **Tray UI model placement**: `src/tray_support.rs` per AGENTS.md (recommended) or `src/orchestrator/ui.rs` (new) as first planned (ORC-11).
+5. **Adapter version source for the release gate**: OSC `plugin_version` plus a recognizer layout version (recommended) versus parsing `claude --version` on the host (ORC-15).
+6. **macOS**: DESIGN.md M0 names Windows and macOS; this spec defers macOS positive control because the tray is Windows-only. The console server still runs there.
+7. **Windows permission prompts**: accept that Delegate covers question menus only until Claude Code hooks run on Windows (recommended), or add a hook installer as a separate item.
+8. **Scores**: item `score` fields are placeholders (the source has no scoring rubric).
+
+## Risks
+- Claude Code menu layout and key behaviour (does a digit select and submit?) change between versions; only real captures settle them (ORC-03, ORC-06, ORC-15).
+- A mid-command attach can show a partial frame until the next full redraw; sessions stay ineligible until the frame is stable for a quiet period (ORC-05).
+- Residual races in a third-party TUI: the host gate narrows them but a PTY has no exactly-once write across a crash; uncertain attempts are never replayed (ORC-13, ORC-14).
+- Cross-repo sequencing: warp-htojy also edits `self_hosted.rs`; the warp-i9ils and warp-m0pj2 bodies predate this re-key and need updating (see README).
+- The Jev provider is a paid external service; excerpts leave the machine only for enrollments that opt in.
